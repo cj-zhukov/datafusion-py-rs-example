@@ -1,0 +1,5 @@
+./datafusion_py_rs_example-0.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+boto3==1.34.0
+datafusion==36.0.0
+pandas==2.2.2
+polars==0.39.0
