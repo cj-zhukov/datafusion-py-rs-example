@@ -13,11 +13,11 @@ use tokio_stream::StreamExt;
 #[pyfunction]
 fn get_data(py: Python<'_>) -> PyResult<pyarrow::PyArrowType<Vec<RecordBatch>>> {
     let batches = pyo3_asyncio::tokio::run(py, async move {
-        let df = get_df().await.unwrap();
-        let batches = df.collect().await.unwrap();
+        let df = get_df().await?;
+        let batches = df.collect().await?;
         Ok(batches)
     });
-    let res = batches.unwrap();
+    let res = batches?;
 
     Ok(res.into())
 }
@@ -25,7 +25,7 @@ fn get_data(py: Python<'_>) -> PyResult<pyarrow::PyArrowType<Vec<RecordBatch>>> 
 #[pyfunction]
 fn process_data(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>) -> PyResult<()>{
     let _res = pyo3_asyncio::tokio::run(py, async move {
-        process_batches(batches.0).await.unwrap();
+        process_batches(batches.0).await?;
         Ok(())
     }); 
 
@@ -35,7 +35,7 @@ fn process_data(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>)
 #[pyfunction]
 fn write_batches(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>, file_path: String) -> PyResult<()>{
     let _res = pyo3_asyncio::tokio::run(py, async move {
-        write_batches_to_file(batches.0, &file_path).await.unwrap();
+        write_batches_to_file(batches.0, &file_path).await?;
         Ok(())
     }); 
 
