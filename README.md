@@ -13,3 +13,7 @@ How to do it locally:
 3) build your Rust crate into wheel package and install it in Python virt env:
   maturin develop
 4) call Rust from Python
+
+There is Dockerfile provided:
+1) build Rust crate into wheel package for Linux
+2) requirements.txt uses that build Rust crate to install it locally
