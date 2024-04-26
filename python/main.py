@@ -3,24 +3,31 @@ from data_utils import calc_foo
 from datafusion import SessionContext
 
 def main():
-    # get data from rust
-    batches = datafusion_py_rs_example.get_data()
+    # process data
+    batches = datafusion_py_rs_example.run()
     ctx = SessionContext()
-    ctx.register_record_batches("t", [batches])
-    df = ctx.sql("select * from t")
+    ctx.register_record_batches("foo", [batches])
+    df = ctx.sql("select * from foo")
     print(df)
 
     # write to parquet file
-    # batches = df.collect()
-    # datafusion_py_rs_example.write_batches(batches, "foo.parquet")
+    batches = df.collect()
+    datafusion_py_rs_example.write_batches(batches, "foo.parquet")
+
+    # get data
+    batches = datafusion_py_rs_example.get_data(1) # 1 | 2
+    ctx = SessionContext()
+    ctx.register_record_batches("bar", [batches])
+    df = ctx.sql("select * from bar")
+    print(df)
 
     # datafusion df can be converted to pandas/polars/arrow
-    # df_pd = df.to_pandas()
-    # print(df_pd)
-    # df_pl = df.to_polars()
-    # print(df_pl)
-    # df_arrow = df.to_arrow_table()
-    # print(df_arrow)
+    df_pd = df.to_pandas()
+    print(df_pd)
+    df_pl = df.to_polars()
+    print(df_pl)
+    df_arrow = df.to_arrow_table()
+    print(df_arrow)
 
     # perform some actions on datafusion df in python
     table = df.to_arrow_table()
