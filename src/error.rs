@@ -4,7 +4,7 @@ use thiserror::Error;
 use std::io::Error as IOError;
 use pyo3::PyErr;
 use pyo3_asyncio::err::RustPanic;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyIOError, PyValueError};
 use datafusion::error::DataFusionError;
 use datafusion::arrow::error::ArrowError;
 use parquet::errors::ParquetError;
@@ -14,7 +14,7 @@ pub enum Error {
     #[error("custom error: `{0}`")]
     Custom(String),
 
-    #[error("io error error: `{0}`")]
+    #[error("io error: `{0}`")]
     IOError(#[from] IOError),
 
     #[error("pyo3 error: `{0}`")]
@@ -34,4 +34,13 @@ pub enum Error {
 
     #[error("rust panic error: `{0}`")]
     RustPanic(#[from] RustPanic),
+}
+
+impl std::convert::From<Error> for PyErr {
+    fn from(value: Error) -> Self {
+        match &value {
+            Error::IOError(_) => PyIOError::new_err(value.to_string()), // get nice Python errors that one got used to
+            _ => PyValueError::new_err(value.to_string()),
+        }
+    }
 }

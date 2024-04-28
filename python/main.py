@@ -12,13 +12,21 @@ def main():
 
     # write to parquet file
     batches = df.collect()
+    print("writing to parquet")
     datafusion_py_rs_example.write_batches(batches, "foo.parquet")
+
+    # read from parquet file
+    print("reading from parquet")
+    batches = datafusion_py_rs_example.read_parquet("foo.parquet")
+    ctx.register_record_batches("bar", [batches])
+    df = ctx.sql("select * from bar")
+    print(df)
 
     # get data
     batches = datafusion_py_rs_example.get_data(1) # 1 | 2
     ctx = SessionContext()
-    ctx.register_record_batches("bar", [batches])
-    df = ctx.sql("select * from bar")
+    ctx.register_record_batches("baz", [batches])
+    df = ctx.sql("select * from baz")
     print(df)
 
     # datafusion df can be converted to pandas/polars/arrow
