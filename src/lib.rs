@@ -1,20 +1,20 @@
+pub mod error;
+use error::Result;
+
 use std::sync::Arc;
 
 use datafusion::prelude::*;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::arrow::array::{RecordBatch, StringArray, Int32Array};
-use datafusion::arrow::pyarrow;
+use datafusion::arrow::pyarrow::PyArrowType;
 use datafusion::parquet::arrow::AsyncArrowWriter;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use tokio::io::AsyncWriteExt;
 use tokio_stream::StreamExt;
 
-pub type Result<T> = core::result::Result<T, Error>;
-pub type Error = Box<dyn std::error::Error>;
-
 #[pyfunction]
-fn get_data(py: Python<'_>, input: i32) -> PyResult<pyarrow::PyArrowType<Vec<RecordBatch>>> {
+fn get_data(py: Python<'_>, input: i32) -> PyResult<PyArrowType<Vec<RecordBatch>>> {
     let batches = pyo3_asyncio::tokio::run(py, async move {
         let df = match input {
             1 => {
@@ -33,38 +33,31 @@ fn get_data(py: Python<'_>, input: i32) -> PyResult<pyarrow::PyArrowType<Vec<Rec
             }
         };
 
-        let batches = df.collect().await
-            .map_err(|e| PyValueError::new_err(format!("failed running collecting data cause: {}", e)))?;
-        Ok(batches)
+        Ok(df.collect().await?)
     });
-    let res = batches?;
 
-    Ok(res.into())
+    Ok(batches?.into())
 }
 
 #[pyfunction]
-fn run(py: Python<'_>) -> PyResult<pyarrow::PyArrowType<Vec<RecordBatch>>> {
+fn run(py: Python<'_>) -> PyResult<PyArrowType<Vec<RecordBatch>>> {
     let batches = pyo3_asyncio::tokio::run(py, async move {
         let df1 = get_df1().await
             .map_err(|e| PyValueError::new_err(format!("failed running get_data1 cause: {}", e)))?;
         let df2 = get_df2().await
             .map_err(|e| PyValueError::new_err(format!("failed running get_data2 cause: {}", e)))?
             .with_column_renamed("id", "id2")?;
-        let res = df1.join(df2, JoinType::Inner, &["id"], &["id2"], None)
-            .map_err(|e| PyValueError::new_err(format!("failed joining dataframes cause: {}", e)))?
+        let res = df1.join(df2, JoinType::Inner, &["id"], &["id2"], None)?
             .select_columns(&["id", "name", "data"])?;
-        
-        let batches = res.collect().await
-            .map_err(|e| PyValueError::new_err(format!("failed running collecting data cause: {}", e)))?;
-        Ok(batches)
+    
+        Ok(res.collect().await?)
     });
-    let res = batches?;
 
-    Ok(res.into())
+    Ok(batches?.into())
 }
 
 #[pyfunction]
-fn process_data(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>) -> PyResult<()>{
+fn process_data(py: Python<'_>, batches: PyArrowType<Vec<RecordBatch>>) -> PyResult<()>{
     let _res = pyo3_asyncio::tokio::run(py, async move {
         process_batches(batches.0).await
             .map_err(|e| PyValueError::new_err(format!("failed running process_batches cause: {}", e)))?;
@@ -75,7 +68,7 @@ fn process_data(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>)
 }
 
 #[pyfunction]
-fn write_batches(py: Python<'_>, batches: pyarrow::PyArrowType<Vec<RecordBatch>>, file_path: String) -> PyResult<()>{
+fn write_batches(py: Python<'_>, batches: PyArrowType<Vec<RecordBatch>>, file_path: String) -> PyResult<()>{
     let _res = pyo3_asyncio::tokio::run(py, async move {
         write_batches_to_file(batches.0, &file_path).await
             .map_err(|e| PyValueError::new_err(format!("failed running write_batches cause: {}", e)))?;
@@ -101,13 +94,13 @@ pub async fn get_df1() -> Result<DataFrame> {
         Field::new("name", DataType::Utf8, true),
     ]);
     let batch = RecordBatch::try_new(
-        schema.clone().into(),
+        schema.into(),
         vec![
             Arc::new(Int32Array::from(vec![1, 2, 3])),
             Arc::new(StringArray::from(vec!["foo", "bar", "baz"])),
         ],
     )?;
-    let df = ctx.read_batch(batch.clone())?;
+    let df = ctx.read_batch(batch)?;
 
     Ok(df)
 }
@@ -119,13 +112,13 @@ pub async fn get_df2() -> Result<DataFrame> {
         Field::new("data", DataType::Int32, true),
     ]);
     let batch = RecordBatch::try_new(
-        schema.clone().into(),
+        schema.into(),
         vec![
             Arc::new(Int32Array::from(vec![1, 2, 3])),
             Arc::new(Int32Array::from(vec![42, 43, 44])),
         ],
     )?;
-    let df = ctx.read_batch(batch.clone())?;
+    let df = ctx.read_batch(batch)?;
 
     Ok(df)
 }
@@ -141,15 +134,15 @@ pub async fn process_batches(batches: Vec<RecordBatch>) -> Result<()> {
 pub async fn write_df_to_file(df: DataFrame, file_path: &str) -> Result<()> {
     let mut buf = vec![];
     let schema = Schema::from(df.clone().schema());
-    let mut stream = df.execute_stream().await.map_err(|e| format!("could not create stream from df cause: {}", e))?;
-    let mut writer = AsyncArrowWriter::try_new(&mut buf, schema.into(), None).map_err(|e | format!("could not create writer cause: {}", e))?;
+    let mut stream = df.execute_stream().await?;
+    let mut writer = AsyncArrowWriter::try_new(&mut buf, schema.into(), None)?;
     while let Some(batch) = stream.next().await.transpose()? {
-        writer.write(&batch).await.map_err(|e| format!("could not write to writer cause: {}", e))?;
+        writer.write(&batch).await?;
     }
-    writer.close().await.map_err(|e | format!("could not close writer cause: {}", e))?;
+    writer.close().await?;
 
-    let mut file = tokio::fs::File::create(file_path).await.map_err(|e| format!("could not create file cause: {}", e))?;
-    file.write_all(&mut buf).await.map_err(|e| format!("could not write to file cause: {}", e))?;
+    let mut file = tokio::fs::File::create(file_path).await?;
+    file.write_all(&mut buf).await?;
 
     Ok(())
 }
@@ -157,14 +150,14 @@ pub async fn write_df_to_file(df: DataFrame, file_path: &str) -> Result<()> {
 async fn write_batches_to_file(batches: Vec<RecordBatch>, file_path: &str) -> Result<()> {
     let mut buf = vec![];
     let schema = batches[0].schema();
-    let mut writer = AsyncArrowWriter::try_new(&mut buf, schema, None).map_err(|e | format!("could not create writer cause: {}", e))?;
+    let mut writer = AsyncArrowWriter::try_new(&mut buf, schema, None)?;
     for batch in batches {
-        writer.write(&batch).await.map_err(|e| format!("could not write to writer cause: {}", e))?;
+        writer.write(&batch).await?;
     }
-    writer.close().await.map_err(|e | format!("could not close writer cause: {}", e))?;
+    writer.close().await?;
 
-    let mut file = tokio::fs::File::create(file_path).await.map_err(|e| format!("could not create file cause: {}", e))?;
-    file.write_all(&mut buf).await.map_err(|e| format!("could not write to file cause: {}", e))?;
+    let mut file = tokio::fs::File::create(file_path).await?;
+    file.write_all(&mut buf).await?;
 
     Ok(())
 }

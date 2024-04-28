@@ -19,4 +19,5 @@ pyo3-asyncio = { version = "0.20", features = [
     "attributes",
     "pyo3-asyncio-macros",
 ] }
+thiserror = "1"
 anyhow = "1"
