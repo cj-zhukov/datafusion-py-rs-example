@@ -12,11 +12,11 @@ RecordBatch type is not the only type that can be passed, see more https://docs.
 ## Usage
 1) setup virt enviroment in Python
 2) install maturin and others libs in Python (datafusion, pandas, polars)
-```python
+```bash
   pip install maturin
 ```
 3) build your Rust crate into wheel package and install it in Python virt env
-```python
+```bash
   maturin develop
 ```
 4) call Rust from Python
