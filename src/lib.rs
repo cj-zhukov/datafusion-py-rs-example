@@ -50,22 +50,18 @@ fn get_data(py: Python<'_>, input: i32) -> PyResult<PyArrowType<Vec<RecordBatch>
 
 #[pyfunction]
 fn process_data(py: Python<'_>, batches: PyArrowType<Vec<RecordBatch>>) -> PyResult<()>{
-    let res = pyo3_asyncio::tokio::run(py, async move {
+    pyo3_asyncio::tokio::run(py, async move {
         process_batches(batches.0).await?;
         Ok(())
-    });
-
-    Ok(res?)
+    })
 }
 
 #[pyfunction]
 fn write_batches(py: Python<'_>, batches: PyArrowType<Vec<RecordBatch>>, file_path: String) -> PyResult<()>{
-    let res = pyo3_asyncio::tokio::run(py, async move {
+    pyo3_asyncio::tokio::run(py, async move {
         write_batches_to_file(batches.0, &file_path).await?;
         Ok(())
-    }); 
-
-    Ok(res?)
+    })
 }
 
 #[pyfunction]
@@ -150,7 +146,7 @@ pub async fn write_df_to_file(df: DataFrame, file_path: &str) -> Result<()> {
     writer.close().await?;
 
     let mut file = tokio::fs::File::create(file_path).await?;
-    file.write_all(&mut buf).await?;
+    file.write_all(&buf).await?;
 
     Ok(())
 }
@@ -165,7 +161,7 @@ async fn write_batches_to_file(batches: Vec<RecordBatch>, file_path: &str) -> Re
     writer.close().await?;
 
     let mut file = tokio::fs::File::create(file_path).await?;
-    file.write_all(&mut buf).await?;
+    file.write_all(&buf).await?;
 
     Ok(())
 }
